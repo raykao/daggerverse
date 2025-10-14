@@ -47,6 +47,17 @@ func (c *Ghcopilot) NewGhcopilot(
 	}, nil
 }
 
+func (c *Ghcopilot) WithModel(
+	ctx context.Context,
+	model string,
+) *Ghcopilot {
+	return &Ghcopilot{
+		Token:  c.Token,
+		Model:  model,
+		Prompt: c.Prompt,
+	}
+}
+
 func (c *Ghcopilot) WithPrompt(
 	ctx context.Context,
 	// REQUIRED - The prompt to send to Copilot
@@ -59,15 +70,22 @@ func (c *Ghcopilot) WithPrompt(
 	}
 }
 
-// Returns a container with GitHub Copilot Installed
-func (c *Ghcopilot) Response(
+func (c *Ghcopilot) Container(
 	ctx context.Context,
-) (string, error) {
-	container := dag.Container().
+) *dagger.Container {
+	return dag.Container().
 		From("node:alpine3.22").
 		WithWorkdir("/workspace").
 		WithExec([]string{"npm", "install", "-g", "@github/copilot"}).
 		WithSecretVariable("GITHUB_TOKEN", c.Token)
+}
+
+
+// Returns a container with GitHub Copilot Installed
+func (c *Ghcopilot) Response(
+	ctx context.Context,
+) (string, error) {
+	container := c.Container(ctx)
 
 	if c.Model != "" {
 		container = container.WithExec([]string{"copilot", "--model", c.Model, "--prompt", c.Prompt})
