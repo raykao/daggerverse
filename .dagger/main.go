@@ -46,7 +46,7 @@ func (c *GHCPClient) WithPrompt(
 	// REQUIRED - The prompt to send to Copilot
 	prompt string,
 ) *GHCPClient {
-	return &c.GHCPClient{
+	return &GHCPClient{
 		token:  c.token,
 		Model:  c.Model,
 		Prompt: prompt,
@@ -54,7 +54,7 @@ func (c *GHCPClient) WithPrompt(
 }
 
 // Returns a container with GitHub Copilot Installed
-func (c *Copilot) Response(
+func (c *GHCPClient) Response(
 	ctx context.Context,
 ) (string, error) {
 	container := dag.Container().
