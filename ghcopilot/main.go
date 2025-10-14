@@ -30,6 +30,15 @@ type Ghcopilot struct {
 	Prompt string
 }
 
+type LLMResponse struct {
+	Content    string
+	TokenUsage LLMTokenUsage
+}
+
+type LLMTokenUsage struct {
+	Info string
+}
+
 func (c *Ghcopilot) NewGhcopilot(
 	ctx context.Context,
 	// The model to use for Copilot (e.g., claude-sonnet-4.5", "claude-sonnet-4", "gpt-5" defaults to the @github/copilot cli versions' default)
@@ -84,8 +93,10 @@ func (c *Ghcopilot) Container(
 // Returns a container with GitHub Copilot Installed
 func (c *Ghcopilot) Response(
 	ctx context.Context,
-) (string, error) {
+) (*LLMResponse, error) {
 	container := c.Container(ctx)
+	var content string
+	var tokenUsage LLMTokenUsage
 
 	if c.Model != "" {
 		container = container.WithExec([]string{"copilot", "--model", c.Model, "--prompt", c.Prompt})
@@ -93,5 +104,24 @@ func (c *Ghcopilot) Response(
 		container = container.WithExec([]string{"copilot", "--prompt", c.Prompt})
 	}
 
-	return container.Stdout(ctx)
+	content, err := container.Stdout(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Note: The GitHub Copilot CLI does not currently provide token usage details in its output.
+	// If it did, you would parse that information here and populate the TokenUsage struct accordingly.
+	info, err := container.Stderr(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tokenUsage = LLMTokenUsage{
+		Info: info,
+	}
+
+	return &LLMResponse{
+		Content: content,
+		TokenUsage: tokenUsage,
+	}, nil
 }
