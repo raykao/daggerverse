@@ -1,8 +1,7 @@
 {
-  "name": "copilot",
+  "name": "ghcopilot",
   "engineVersion": "v0.19.2",
   "sdk": {
     "source": "go"
-  },
-  "source": ".dagger"
+  }
 }

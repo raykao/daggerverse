@@ -1,4 +1,4 @@
-module dagger/copilot
+module dagger/ghcopilot
 
 go 1.25.1
 
