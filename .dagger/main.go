@@ -64,9 +64,9 @@ func (c *Copilot) Response(
 		WithSecretVariable("GITHUB_TOKEN", c.token)
 	
 	if c.model != "" {
-		container = container.WithExec([]string{"copilot", "--model", c.model, "--prompt", prompt})
+		container = container.WithExec([]string{"copilot", "--model", c.model, "--prompt", c.prompt})
 	} else {
-		container = container.WithExec([]string{"copilot", "--prompt", prompt})
+		container = container.WithExec([]string{"copilot", "--prompt", c.prompt})
 	}
 
 	return container.Stdout(ctx)
