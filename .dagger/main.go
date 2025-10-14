@@ -21,12 +21,12 @@ import (
 
 type GHCPClient struct {
 	// REQUIRED - The GitHub Token to authenticate with Copilot - usually a PAT with "Copilot Requests" with "Allow: Read Only: scope
-	token *dagger.Secret,
+	token *dagger.Secret
 	// OPTIONAL - The model to use for Copilot (e.g., claude-sonnet-4.5", "claude-sonnet-4", "gpt-5" defaults to the @github/copilot cli versions' default)
 	// +optional
-	Model string,
+	Model string
 	// OPTIONAL at constructiion - The prompt to send to Copilot
-	Prompt string,
+	Prompt string
 }
 
 func NewGHCPClient(
@@ -46,9 +46,9 @@ func (c *GHCPClient) WithPrompt(
 	// REQUIRED - The prompt to send to Copilot
 	prompt string,
 ) *GHCPClient {
-	return 	&c.GHCPClient{
-		token: c.token,
-		Model: c.Model,
+	return &c.GHCPClient{
+		token:  c.token,
+		Model:  c.Model,
 		Prompt: prompt,
 	}
 }
@@ -62,7 +62,7 @@ func (c *Copilot) Response(
 		WithWorkdir("/workspace").
 		WithExec([]string{"npm", "install", "-g", "@github/copilot"}).
 		WithSecretVariable("GITHUB_TOKEN", c.token)
-	
+
 	if c.model != "" {
 		container = container.WithExec([]string{"copilot", "--model", c.model, "--prompt", c.prompt})
 	} else {
