@@ -19,24 +19,55 @@ import (
 	"dagger/copilot/internal/dagger"
 )
 
-type Copilot struct {
+type GHCPClient struct {
+	// REQUIRED - The GitHub Token to authenticate with Copilot - usually a PAT with "Copilot Requests" with "Allow: Read Only: scope
+	token *dagger.Secret,
+	// OPTIONAL - The model to use for Copilot (e.g., claude-sonnet-4.5", "claude-sonnet-4", "gpt-5" defaults to the @github/copilot cli versions' default)
+	// +optional
+	Model string,
+	// OPTIONAL at constructiion - The prompt to send to Copilot
+	Prompt string,
+}
+
+func NewGHCPClient(
+	ctx context.Context,
+	// The model to use for Copilot (e.g., claude-sonnet-4.5", "claude-sonnet-4", "gpt-5" defaults to the @github/copilot cli versions' default)
+	// +optional
+	model string,
+	token *dagger.Secret,
+) *GHCPClient {
+	return &GHCPClient{
+		token: token,
+		Model: model,
+	}
+}
+
+func (c *GHCPClient) WithPrompt(
+	// REQUIRED - The prompt to send to Copilot
+	prompt string,
+) *GHCPClient {
+	return 	&c.GHCPClient{
+		token: c.token,
+		Model: c.Model,
+		Prompt: prompt,
+	}
 }
 
 // Returns a container with GitHub Copilot Installed
-func (m *Copilot) GoCode(
+func (c *Copilot) Response(
 	ctx context.Context,
-	model string,
-	token *dagger.Secret,
-	prompt string,
-
 ) (string, error) {
-
 	container := dag.Container().
 		From("node:alpine3.22").
 		WithWorkdir("/workspace").
 		WithExec([]string{"npm", "install", "-g", "@github/copilot"}).
-		WithSecretVariable("GITHUB_TOKEN", token).
-		WithExec([]string{"copilot", "--model", model, "--prompt", prompt})
+		WithSecretVariable("GITHUB_TOKEN", c.token)
+	
+	if c.model != "" {
+		container = container.WithExec([]string{"copilot", "--model", c.model, "--prompt", prompt})
+	} else {
+		container = container.WithExec([]string{"copilot", "--prompt", prompt})
+	}
 
 	return container.Stdout(ctx)
 }
