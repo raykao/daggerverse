@@ -1,5 +1,3 @@
-# GitHub Copilot Dagger Module
+# RayKao/Daggerverse
 
-An example repo of using GitHub Copilot CLI in a dagger module.
-
-Similar to other coding agents, we want to show how to take advantage of GitHub Copilot CLI to multi-step or parallel agentic workloads.
+A collection of [dagger](https://dagger.io) modules to use.
