@@ -15,17 +15,17 @@ You can then run the dagger shell and run accordingly
 dagger
 
 # Dagger Shell
-new-ghcopilot env://GITHUB_TOKEN | with-prompt "some inline prompt" | response
+new-ghcopilot env://GITHUB_TOKEN | with-prompt "some inline prompt" | response | content
 ```
 
 Or System Shell
 ```bash
-dagger -c "new-ghcopilot env://GITHUB_TOKEN | with-prompt 'some inline prompt' | response"
+dagger -c "new-ghcopilot env://GITHUB_TOKEN | with-prompt 'some inline prompt' | response | content"
 ```
 
 Or with the Dagger CLI
 ```bash
-dagger call new-ghcopilot --token=env://GITHUB_TOKEN with-prompt --prompt='some inline prompt' response
+dagger call new-ghcopilot --token=env://GITHUB_TOKEN with-prompt --prompt='some inline prompt' response content
 ```
 
 ## Notes
