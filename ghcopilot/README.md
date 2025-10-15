@@ -36,3 +36,10 @@ dagger call new-ghcopilot --token=env://GITHUB_TOKEN with-prompt --prompt='some 
 Q: Why must I use a GH PAT token, can't I just pass in my GitHub CLI OAuth Token (```gh auth login```)??
 
 A: The GitHub CLI has long since implemented using the local keyring solution on a given OS.  As such when you run ```gh auth login``` the command will securely store your token into the local OS keyring instead of a plain text value stored in ~/.config/gh/hosts.yml.  You can sorta follow issues/concerns about the previous insecure way of doing this [here](https://github.com/cli/cli/issues/8954) - I'm sure there are more detailed discussions/articles/issues about this as well.
+
+> [!Note]
+> This will work under certain circumstances:
+> 1. You are on a system with an incompatible keyring store or where one is not installed (Some linux distros)
+> 2. if you intentionally set the ```--insecure-storage``` flag when running ```gh auth login```
+>
+> In either case I have intentionally left this out, since in a production CI/CD environment you would not be using your OAuth credentials and should be using a GH PAT fine-grained token instead
