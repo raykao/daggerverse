@@ -114,8 +114,8 @@ func (c *Ghcopilot) Response(
 		return nil, err
 	}
 
-	// Note: The GitHub Copilot CLI does not currently provide token usage details in its output.
-	// If it did, you would parse that information here and populate the TokenUsage struct accordingly.
+	// Note: The GitHub Copilot CLI does not currently provide token usage details in its output as a structured data output.
+	// We are just outputing the raw details from the response here.
 	info, err := container.Stderr(ctx)
 	if err != nil {
 		return nil, err
