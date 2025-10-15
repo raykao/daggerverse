@@ -21,13 +21,14 @@ import (
 )
 
 type Ghcopilot struct {
-	// REQUIRED - The GitHub Token to authenticate with Copilot - usually a PAT with "Copilot Requests" with "Allow: Read Only: scope
+	// REQUIRED - The GitHub PAT Token to authenticate with Copilot - must have permissions "Copilot Requests" with "Allow: Read Only" scope
 	Token *dagger.Secret
 	// OPTIONAL - The model to use for Copilot (e.g., claude-sonnet-4.5", "claude-sonnet-4", "gpt-5" defaults to the @github/copilot cli versions' default)
-	// +optional
 	Model string
 	// OPTIONAL at constructiion - The prompt to send to Copilot
 	Prompt string
+	// OPTIONAL - The workspace directory to use as the context for Copilot (defaults to the root of the project)
+	Workspace *dagger.Directory
 }
 
 type LLMResponse struct {
@@ -45,14 +46,18 @@ func (c *Ghcopilot) NewGhcopilot(
 	// +optional
 	model string,
 	token *dagger.Secret,
+	// +defaultPath="/"
+	workspace *dagger.Directory,
 ) (*Ghcopilot, error ){
 
 	if token == nil {
 		return nil, fmt.Errorf("missing token secret: call ghcopilot with-token --token env:GITHUB_TOKEN (or your env var) before calling response")
 	}
+
 	return &Ghcopilot{
 		Token: token,
 		Model: model,
+		Workspace: workspace,
 	}, nil
 }
 
@@ -60,11 +65,9 @@ func (c *Ghcopilot) WithModel(
 	ctx context.Context,
 	model string,
 ) *Ghcopilot {
-	return &Ghcopilot{
-		Token:  c.Token,
-		Model:  model,
-		Prompt: c.Prompt,
-	}
+
+	c.Model = model
+	return c
 }
 
 func (c *Ghcopilot) WithPrompt(
@@ -72,29 +75,31 @@ func (c *Ghcopilot) WithPrompt(
 	// REQUIRED - The prompt to send to Copilot
 	prompt string,
 ) *Ghcopilot {
-	return &Ghcopilot{
-		Token:  c.Token,
-		Model:  c.Model,
-		Prompt: prompt,
-	}
+	
+	c.Prompt = prompt
+	return c
 }
 
+
+// Returns a container with GitHub Copilot Installedfunc (c *Ghcopilot) Container(
 func (c *Ghcopilot) Container(
 	ctx context.Context,
 ) *dagger.Container {
 	return dag.Container().
-		From("node:alpine3.22").
-		WithWorkdir("/workspace").
+		From("node:24-bookworm-slim").
 		WithExec([]string{"npm", "install", "-g", "@github/copilot"}).
-		WithSecretVariable("GITHUB_TOKEN", c.Token)
+		WithSecretVariable("GITHUB_TOKEN", c.Token).
+		WithDirectory("/workspace", c.Workspace).
+		WithWorkdir("/workspace")
 }
 
-
-// Returns a container with GitHub Copilot Installed
+// Runs Copilot with the given prompt
 func (c *Ghcopilot) Response(
 	ctx context.Context,
 ) (*LLMResponse, error) {
+	
 	container := c.Container(ctx)
+	
 	var content string
 	var tokenUsage LLMTokenUsage
 
