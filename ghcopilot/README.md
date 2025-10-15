@@ -31,6 +31,8 @@ dagger call new-ghcopilot --token=env://GITHUB_TOKEN with-prompt --prompt='some 
 ## Todos
 1. Add a custom "slash command" function that allows a specific prompt to be run.  The GHCP cli does not currently support this out of the box in otherwords, simply passing in ```copilot -p "/%some_prompt_name%"``` does not work currently.  At the moment if attempting this the GHCP cli believes you're trying to look for or create a directiy with that name and does not know to autoload a prompt found in ```.github/prompts/%some_prompt_name%.prompt.md```.
 
+2. Create a GitHub Action Workflow that can be triggered on Issues/PRs/Comments to do "Agentic Work" similar to the [greetings-api](https://github.com/kpenfound/greetings-api) Demo by [Kyle Penfound's](https://github.com/kpenfound).
+
 ## Notes
 
 Q: Why must I use a GH PAT token, can't I just pass in my GitHub CLI OAuth Token (```gh auth login```)??
