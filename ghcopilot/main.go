@@ -80,8 +80,7 @@ func (c *Ghcopilot) WithPrompt(
 	return c
 }
 
-
-// Returns a container with GitHub Copilot Installedfunc (c *Ghcopilot) Container(
+// Returns a container with GitHub Copilot Installed
 func (c *Ghcopilot) Container(
 	ctx context.Context,
 ) *dagger.Container {
@@ -129,4 +128,29 @@ func (c *Ghcopilot) Response(
 		Content: content,
 		TokenUsage: tokenUsage,
 	}, nil
+}
+
+// One of the main functions to implement to conform to dagger/dagger/core/llm.go LLMClient Interface
+// llm tools is a list of tools that the llm can call via Dagger - for now we won't implement tool calling
+func (c *Ghcopilot) SendQuery(ctx context.Context, history []*ModelMessage, tools []LLMTool) (_ *LLMResponse, rerr error) {
+	// For now, we will just send the last message in history as the prompt
+	
+	response, err := c.Response(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// We won't retry any errors by default for now
+func (c *Ghcopilot) IsRetryable(err error) bool {
+	return false
+}
+
+func convertLLMToolsToCopilotToolArguments(tools []LLMTool) []string {
+	var args []string
+	// Currently, GitHub Copilot CLI does not support tool integration directly.
+	// This function is a placeholder for future implementation if such support is added.
+	return args
 }
