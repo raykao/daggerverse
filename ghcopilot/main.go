@@ -15,9 +15,9 @@
 package main
 
 import (
-	"fmt"
 	"context"
 	"dagger/ghcopilot/internal/dagger"
+	"fmt"
 )
 
 type Ghcopilot struct {
@@ -48,17 +48,27 @@ func (c *Ghcopilot) NewGhcopilot(
 	token *dagger.Secret,
 	// +defaultPath="/"
 	workspace *dagger.Directory,
-) (*Ghcopilot, error ){
+) (*Ghcopilot, error) {
 
 	if token == nil {
 		return nil, fmt.Errorf("missing token secret: call ghcopilot with-token --token env:GITHUB_TOKEN (or your env var) before calling response")
 	}
 
 	return &Ghcopilot{
-		Token: token,
-		Model: model,
+		Token:     token,
+		Model:     model,
 		Workspace: workspace,
 	}, nil
+}
+
+func (c *Ghcopilot) WithToken(
+	ctx context.Context,
+	// REQUIRED - The GitHub PAT Token to authenticate with Copilot - must have permissions "Copilot Requests" with "Allow: Read Only" scope
+	token *dagger.Secret,
+) *Ghcopilot {
+
+	c.Token = token
+	return c
 }
 
 func (c *Ghcopilot) WithModel(
@@ -75,11 +85,10 @@ func (c *Ghcopilot) WithPrompt(
 	// REQUIRED - The prompt to send to Copilot
 	prompt string,
 ) *Ghcopilot {
-	
+
 	c.Prompt = prompt
 	return c
 }
-
 
 // Returns a container with GitHub Copilot Installedfunc (c *Ghcopilot) Container(
 func (c *Ghcopilot) Container(
@@ -97,9 +106,9 @@ func (c *Ghcopilot) Container(
 func (c *Ghcopilot) Response(
 	ctx context.Context,
 ) (*LLMResponse, error) {
-	
+
 	container := c.Container(ctx)
-	
+
 	var content string
 	var tokenUsage LLMTokenUsage
 
@@ -126,7 +135,7 @@ func (c *Ghcopilot) Response(
 	}
 
 	return &LLMResponse{
-		Content: content,
+		Content:    content,
 		TokenUsage: tokenUsage,
 	}, nil
 }
