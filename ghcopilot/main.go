@@ -18,6 +18,9 @@ import (
 	"context"
 	"dagger/ghcopilot/internal/dagger"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 type Ghcopilot struct {
@@ -37,7 +40,11 @@ type LLMResponse struct {
 }
 
 type LLMTokenUsage struct {
-	Info string
+	InputTokens       int64
+	OutputTokens      int64
+	CachedTokenReads  int64
+	CachedTokenWrites int64
+	TotalTokens       int64
 }
 
 func (c *Ghcopilot) NewGhcopilot(
@@ -123,19 +130,67 @@ func (c *Ghcopilot) Response(
 		return nil, err
 	}
 
-	// Note: The GitHub Copilot CLI does not currently provide token usage details in its output as a structured data output.
-	// We are just outputing the raw details from the response here.
-	info, err := container.Stderr(ctx)
+	// Get the stderr output which contains usage information
+	responseMetadata, err := container.Stderr(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenUsage = LLMTokenUsage{
-		Info: info,
-	}
+	// Parse the token usage from the stderr output
+	tokenUsage = parseLLMTokenUsage(responseMetadata)
 
 	return &LLMResponse{
 		Content:    content,
 		TokenUsage: tokenUsage,
 	}, nil
+}
+
+// parseLLMTokenUsage parses the stderr output from GitHub Copilot CLI to extract token usage information
+func parseLLMTokenUsage(output string) LLMTokenUsage {
+	var tokenUsage LLMTokenUsage
+
+	// Parse the usage line that contains model-specific token information
+	// Example: "claude-sonnet-4.5    7.5k input, 52 output, 3.6k cache read (Est. 1 Premium request)"
+
+	// Look for the pattern: model name followed by input, output, cache read values
+	re := regexp.MustCompile(`(\d+(?:\.\d+)?)(k?)\s+input,\s*(\d+(?:\.\d+)?)(k?)\s+output,\s*(\d+(?:\.\d+)?)(k?)\s+cache read,\s*(\d+(?:\.\d+)?)(k?)\s+cache write`)
+	matches := re.FindStringSubmatch(output)
+
+	if len(matches) >= 7 {
+		// Parse input tokens
+		if inputVal, err := strconv.ParseFloat(matches[1], 64); err == nil {
+			if strings.ToLower(matches[2]) == "k" {
+				inputVal *= 1000
+			}
+			tokenUsage.InputTokens = int64(inputVal)
+		}
+
+		// Parse output tokens
+		if outputVal, err := strconv.ParseFloat(matches[3], 64); err == nil {
+			if strings.ToLower(matches[4]) == "k" {
+				outputVal *= 1000
+			}
+			tokenUsage.OutputTokens = int64(outputVal)
+		}
+
+		// Parse cache read tokens
+		if cacheVal, err := strconv.ParseFloat(matches[5], 64); err == nil {
+			if strings.ToLower(matches[6]) == "k" {
+				cacheVal *= 1000
+			}
+			tokenUsage.CachedTokenReads = int64(cacheVal)
+		}
+
+		// Parse cache write tokens
+		if cacheVal, err := strconv.ParseFloat(matches[7], 64); err == nil {
+			if strings.ToLower(matches[8]) == "k" {
+				cacheVal *= 1000
+			}
+			tokenUsage.CachedTokenWrites = int64(cacheVal)
+		}
+
+		tokenUsage.TotalTokens = tokenUsage.InputTokens + tokenUsage.OutputTokens
+	}
+
+	return tokenUsage
 }
