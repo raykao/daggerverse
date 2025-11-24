@@ -157,38 +157,24 @@ func parseLLMTokenUsage(output string) LLMTokenUsage {
 	matches := re.FindStringSubmatch(output)
 
 	if len(matches) >= 7 {
-		// Parse input tokens
-		if inputVal, err := strconv.ParseFloat(matches[1], 64); err == nil {
-			if strings.ToLower(matches[2]) == "k" {
-				inputVal *= 1000
+		// Helper function to parse token values
+		parseTokenValue := func(valueStr, multiplierStr string) int64 {
+			// Convert string to a float first to handle decimal values
+			val, err := strconv.ParseFloat(valueStr, 64)
+			if err != nil {
+				return 0
 			}
-			tokenUsage.InputTokens = int64(inputVal)
+			// Apply multiplier if 'k' is present (e.g 3.5k = 3500)
+			if strings.ToLower(multiplierStr) == "k" {
+				val *= 1000
+			}
+			return int64(val)
 		}
 
-		// Parse output tokens
-		if outputVal, err := strconv.ParseFloat(matches[3], 64); err == nil {
-			if strings.ToLower(matches[4]) == "k" {
-				outputVal *= 1000
-			}
-			tokenUsage.OutputTokens = int64(outputVal)
-		}
-
-		// Parse cache read tokens
-		if cacheVal, err := strconv.ParseFloat(matches[5], 64); err == nil {
-			if strings.ToLower(matches[6]) == "k" {
-				cacheVal *= 1000
-			}
-			tokenUsage.CachedTokenReads = int64(cacheVal)
-		}
-
-		// Parse cache write tokens
-		if cacheVal, err := strconv.ParseFloat(matches[7], 64); err == nil {
-			if strings.ToLower(matches[8]) == "k" {
-				cacheVal *= 1000
-			}
-			tokenUsage.CachedTokenWrites = int64(cacheVal)
-		}
-
+		tokenUsage.InputTokens = parseTokenValue(matches[1], matches[2])
+		tokenUsage.OutputTokens = parseTokenValue(matches[3], matches[4])
+		tokenUsage.CachedTokenReads = parseTokenValue(matches[5], matches[6])
+		tokenUsage.CachedTokenWrites = parseTokenValue(matches[7], matches[8])
 		tokenUsage.TotalTokens = tokenUsage.InputTokens + tokenUsage.OutputTokens
 	}
 
