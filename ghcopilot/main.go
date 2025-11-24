@@ -28,6 +28,8 @@ type Ghcopilot struct {
 	Token *dagger.Secret
 	// OPTIONAL - The model to use for Copilot (e.g., claude-sonnet-4.5", "claude-sonnet-4", "gpt-5" defaults to the @github/copilot cli versions' default)
 	Model string
+	// OPTIONAL - The version of the @github/copilot cli to use (defaults to "latest")
+	CliVersion string
 	// OPTIONAL at constructiion - The prompt to send to Copilot
 	Prompt string
 	// OPTIONAL - The workspace directory to use as the context for Copilot (defaults to the root of the project)
@@ -52,6 +54,11 @@ func (c *Ghcopilot) NewGhcopilot(
 	// The model to use for Copilot (e.g., claude-sonnet-4.5", "claude-sonnet-4", "gpt-5" defaults to the @github/copilot cli versions' default)
 	// +optional
 	model string,
+	// The version of the @github/copilot cli to use (defaults to "latest")
+	// +optional
+	// +default="latest"
+	cliVersion string,
+	// REQUIRED - The GitHub PAT Token to authenticate with Copilot - must have permissions "Copilot Requests" with "Allow: Read Only" scope
 	token *dagger.Secret,
 	// +defaultPath="/"
 	workspace *dagger.Directory,
@@ -62,9 +69,10 @@ func (c *Ghcopilot) NewGhcopilot(
 	}
 
 	return &Ghcopilot{
-		Token:     token,
-		Model:     model,
-		Workspace: workspace,
+		Token:      token,
+		CliVersion: cliVersion,
+		Model:      model,
+		Workspace:  workspace,
 	}, nil
 }
 
@@ -101,12 +109,14 @@ func (c *Ghcopilot) WithPrompt(
 func (c *Ghcopilot) Container(
 	ctx context.Context,
 ) *dagger.Container {
+
 	return dag.Container().
 		From("node:24-bookworm-slim").
-		WithExec([]string{"npm", "install", "-g", "@github/copilot"}).
+		WithExec([]string{"npm", "install", "-g", fmt.Sprintf("@github/copilot@%s", c.CliVersion)}).
 		WithSecretVariable("GITHUB_TOKEN", c.Token).
 		WithDirectory("/workspace", c.Workspace).
 		WithWorkdir("/workspace")
+
 }
 
 // Runs Copilot with the given prompt
@@ -122,6 +132,7 @@ func (c *Ghcopilot) Response(
 	if c.Model != "" {
 		container = container.WithExec([]string{"copilot", "--model", c.Model, "--prompt", c.Prompt})
 	} else {
+		// if no model specified, default to the GHCP CLIs' built-in default (e.g. claude-sonnet-4 as of October 2025)
 		container = container.WithExec([]string{"copilot", "--prompt", c.Prompt})
 	}
 
@@ -137,7 +148,7 @@ func (c *Ghcopilot) Response(
 	}
 
 	// Parse the token usage from the stderr output
-	tokenUsage = parseLLMTokenUsage(responseMetadata)
+	tokenUsage = parseCopilotTokenMetadata(responseMetadata)
 
 	return &LLMResponse{
 		Content:    content,
@@ -145,38 +156,36 @@ func (c *Ghcopilot) Response(
 	}, nil
 }
 
-// parseLLMTokenUsage parses the stderr output from GitHub Copilot CLI to extract token usage information
-func parseLLMTokenUsage(output string) LLMTokenUsage {
+// parseCopilotTokenMetadata parses the stderr output (GHCP CLI Meatdata) from GitHub Copilot CLI to extract token usage information
+func parseCopilotTokenMetadata(copilotclimetadata string) LLMTokenUsage {
 	var tokenUsage LLMTokenUsage
 
 	// Parse the usage line that contains model-specific token information
 	// Example: "claude-sonnet-4.5    7.5k input, 52 output, 3.6k cache read (Est. 1 Premium request)"
 
-	// Look for the pattern: model name followed by input, output, cache read values
-	re := regexp.MustCompile(`(\d+(?:\.\d+)?)(k?)\s+input,\s*(\d+(?:\.\d+)?)(k?)\s+output,\s*(\d+(?:\.\d+)?)(k?)\s+cache read,\s*(\d+(?:\.\d+)?)(k?)\s+cache write`)
-	matches := re.FindStringSubmatch(output)
+	// Look for the pattern: #k input, #k output, #k cache read
+	re := regexp.MustCompile(`(\d+(?:\.\d+)?)(k?)\s+input,\s*(\d+(?:\.\d+)?)(k?)\s+output,\s*(\d+(?:\.\d+)?)(k?)\s+cache read`)
+	matches := re.FindStringSubmatch(copilotclimetadata)
 
 	if len(matches) >= 7 {
-		// Helper function to parse token values
-		parseTokenValue := func(valueStr, multiplierStr string) int64 {
-			// Convert string to a float first to handle decimal values
-			val, err := strconv.ParseFloat(valueStr, 64)
-			if err != nil {
-				return 0
-			}
-			// Apply multiplier if 'k' is present (e.g 3.5k = 3500)
-			if strings.ToLower(multiplierStr) == "k" {
-				val *= 1000
-			}
-			return int64(val)
-		}
-
 		tokenUsage.InputTokens = parseTokenValue(matches[1], matches[2])
 		tokenUsage.OutputTokens = parseTokenValue(matches[3], matches[4])
 		tokenUsage.CachedTokenReads = parseTokenValue(matches[5], matches[6])
-		tokenUsage.CachedTokenWrites = parseTokenValue(matches[7], matches[8])
+		tokenUsage.CachedTokenWrites = int64(0) // GitHub Copilot CLI is currently inconsistent with CacheWrite data output
 		tokenUsage.TotalTokens = tokenUsage.InputTokens + tokenUsage.OutputTokens
 	}
 
 	return tokenUsage
+}
+
+func parseTokenValue(valueStr string, multiplierStr string) int64 {
+	// Convert string to a float first to handle decimal values
+	if inputVal, err := strconv.ParseFloat(valueStr, 64); err == nil {
+		//  Apply multiplier if 'k' is present (e.g 3.5k = 3500)
+		if strings.ToLower(multiplierStr) == "k" {
+			inputVal *= 1000
+		}
+		return int64(inputVal)
+	}
+	return 0
 }
